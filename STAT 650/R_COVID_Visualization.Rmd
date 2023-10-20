@@ -1,0 +1,205 @@
+---
+title: "Project, STAT 650"
+author: "Gyubeen Park"
+date: "2022-10-06"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+https://www.kaggle.com/datasets/georgesaavedra/covid19-dataset
+https://ourworldindata.org/covid-vaccinations
+https://github.com/owid/covid-19-data/tree/master/public/data
+
+```{r}
+library(ggplot2)
+library(dplyr)
+library(tidyverse)
+library(lubridate)
+library(scales)
+covid <- read_csv("owid-covid-data.csv")
+```
+
+```{r}
+head(covid)
+```
+
+```{r}
+glimpse(covid)
+```
+
+```{r}
+unique(covid$location)
+```
+
+```{r}
+covid %>%
+  group_by(location) %>%
+  summarise(
+    avg_cases = mean(new_cases_per_million, na.rm = TRUE),
+    sd_cases = sd(new_cases_per_million, na.rm = TRUE)
+  ) %>% 
+  arrange(desc(avg_cases)) %>% 
+  slice_head(n = 10)
+
+covid %>%
+  group_by(location) %>%
+  summarise(
+    avg_cases = mean(new_cases_per_million, na.rm = TRUE),
+    sd_cases = sd(new_cases_per_million, na.rm = TRUE)
+  ) %>% 
+  arrange(avg_cases) %>% 
+  slice_head(n = 10)
+```
+```{r}
+ggplot(data = covid, aes(x = date, y = total_cases_per_million, color = continent)) +
+  geom_line()
+```
+```{r}
+covid7 <- covid %>%
+  filter(location == "United States" | location == "Germany" | location == "South Korea" | location == "Canada" | location == "Italy" | location == "France" | location == "United Kingdom")
+  
+ggplot(covid7, aes(x = date, y = total_cases_per_million, col = location)) +
+  geom_point() +
+  geom_smooth() +
+  xlab("Dates") +  ylab("Total cases per million") +
+  theme_bw() +
+  theme(text = element_text(size = 12, face = "bold"),
+        legend.position = c(0.2,0.70))
+```
+
+```{r}
+ggplot(data = covid7, aes(x = date, y = total_cases_per_million, col = location, group = location)) +
+  geom_line() +
+  xlab("Dates") +  ylab("Total cases per million") +
+  facet_wrap(~location)
+```
+
+```{r}
+uscovid <- covid %>% 
+  filter(location == "United States")
+view(uscovid)
+```
+
+```{r}
+uscovid %>% 
+  filter(date >= as.Date("2022-09-01") & date <= as.Date("2022-09-30")) %>%
+  ggplot(aes(x = date, y = new_cases)) +
+  geom_col() +
+  ylab("New Cases") +
+  ggtitle("Covid19 New Cases in September")
+```
+
+```{r}
+ggplot(uscovid, aes(x = date, y = total_cases)) +
+  geom_line(size = 0.3) +
+  geom_smooth(span = 0.2, se = FALSE, size = 0.5) +
+  xlab("Date") + ylab("Total cases") +
+  scale_y_continuous(labels = comma) +
+  theme_light()
+```
+```{r}
+ggplot(uscovid, aes(x = date, y = total_deaths)) +
+  geom_line(size = 0.3) +
+  geom_smooth(span = 0.2, se = FALSE, size = 0.5) +
+  xlab("Date") + ylab("Total Death") +
+  scale_y_continuous(labels = comma) +
+  theme_light()
+```
+```{r}
+ggplot(uscovid, aes(x = date, y = total_vaccinations)) +
+  geom_line(size = 0.3) +
+  geom_smooth(span = 0.2, se = FALSE, size = 0.5) +
+  xlab("Date") + ylab("Total Vaccinations") +
+  scale_y_continuous(labels = comma) +
+  theme_light()
+```
+
+
+```{r}
+ggplot(uscovid, aes(x = date)) +
+  geom_line(aes(y = total_cases, color = 'Total Cases')) + 
+  geom_line(aes(y = total_vaccinations, color = 'Total Vacination'))
+```
+
+```{r}
+t <- ymd(covid$date, tz = "America/Los_Angeles")
+covid <- mutate(covid, wday = wday(t, label = T))
+
+covid %>% 
+  group_by(wday) %>% 
+  summarise(
+     avg_cases = mean(new_cases, na.rm = TRUE)
+  ) %>% 
+  ggplot(aes(wday, avg_cases)) +
+  geom_col() +
+  xlab("Day") +  ylab("Average Cases")
+```
+
+```{r}
+covid %>%  
+  ggplot(aes(x = total_vaccinations, y = new_cases)) +
+  geom_point(alpha = 0.8) + 
+  geom_smooth(method = "lm", se = FALSE) +
+  labs(x = "Total Vaccination",
+       y = "New Cases",
+       title = "Relationship between Vaccination & Covid-19")
+```
+
+
+```{r}
+covid %>% 
+  filter(date == "2022-10-04") %>% 
+  ggplot(aes(x = aged_65_older, y = total_deaths_per_million)) +
+  geom_point(alpha = 0.8) + 
+  geom_smooth(method = "lm", se = FALSE) +
+  labs(x = "Population aged 65+",
+       y = "Total deaths per million",
+       title = "Relationship between the Elderly & Mortality")
+```
+
+
+```{r}
+summary(covid$human_development_index)
+covid <- mutate(covid, human_development_lv = cut(human_development_index, breaks = c(0, 0.6, 0.74, 0.84, 0.96), labels = c("4", "3", "2", "1")))
+
+covid %>% 
+  filter(!is.na(human_development_lv)) %>% 
+  ggplot(aes(x = human_development_lv, y = total_cases_per_million)) +
+  geom_boxplot() +
+  xlab("Human Development Level") +  ylab("Total cases per million")
+```
+```{r}
+
+covid %>%
+  filter(date == "2022-10-04") %>% 
+  ggplot(aes(x = human_development_lv, y = total_cases_per_million, fill = continent)) +
+  geom_col() +
+  xlab("Human Development Level") +  ylab("Total cases per million")
+```
+```{r}
+covid %>%
+  group_by(human_development_lv) %>%
+  summarise(
+    avg_hospital = mean(hospital_beds_per_thousand, na.rm = TRUE)
+  ) %>% 
+  ggplot(aes(avg_hospital, fct_reorder(human_development_lv, avg_hospital))) +
+  geom_point() + xlab("Hospital beds per thousand") + ylab("Human Development Level")
+```
+
+```{r}
+covid %>%
+  filter(date == "2022-10-04") %>% 
+  group_by(human_development_lv) %>%
+  summarise(n = mean(total_vaccinations_per_hundred, na.rm = TRUE)) %>%
+  ggplot(aes(reorder(human_development_lv,n),n))+
+  geom_bar(aes(fill=human_development_lv), stat="identity") +
+  coord_flip()+
+  theme_light()+
+  ggtitle("Vaccination rate by Human Development Level") +
+  xlab("Human Development Level") +  ylab("Average Vaccinations") + 
+  theme(plot.title = element_text(hjust=0.5)) +
+  theme(legend.position = "none")
+```
